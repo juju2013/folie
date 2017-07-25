@@ -1,4 +1,4 @@
-## Folie v3
+## Folie v2
 
 ![](https://img.shields.io/badge/work-In_Progress-red.svg)
 [![GoDoc](https://godoc.org/github.com/jeelabs/folie?status.svg)](http://godoc.org/github.com/jeelabs/folie)
@@ -10,8 +10,8 @@ is as interactive terminal, but it can also upload code to an STM32 µC and is
 tailored in particular for use with [Mecrisp
 Forth](http://mecrisp.sourceforge.net/).
 
-This is experimental code, the stable version is in the "v2" branch at:  
-<https://github.com/jeelabs/folie/tree/v2>
+This is experimental code, the stable version is at:  
+<https://github.com/jeelabs/embello/tree/master/tools/folie>
 
 ### Acknowledgments
 
