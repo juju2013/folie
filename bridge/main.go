@@ -40,32 +40,31 @@ func main() {
 	})
 	mqttCheck(t)
 
-	go readSerial(dev, c)
+	go func() {
+		scanner := bufio.NewScanner(dev)
+		for scanner.Scan() {
+			msg := scanner.Text()
+			if !*quietFlag {
+				fmt.Printf("< %s\n", msg)
+			}
+			t := c.Publish(topic("in"), 0, false, msg)
+			mqttCheck(t)
+		}
+		os.Exit(1)
+	}()
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		text, err := reader.ReadString('\n')
-		check(err)
-		dev.Write([]byte(text[:len(text)-1] + "\r"))
+		if err != nil {
+			break
+		}
+		dev.Write([]byte(text))
 	}
-	// exit when stdin closes
 }
 
 func topic(s string) string {
 	return strings.Replace(*topicFlag, "%", s, -1)
-}
-
-func readSerial(dev serial.Port, client mqtt.Client) {
-	scanner := bufio.NewScanner(dev)
-	for scanner.Scan() {
-		msg := scanner.Text()
-		if !*quietFlag {
-			fmt.Printf("< %s\n", msg)
-		}
-		t := client.Publish(topic("in"), 0, false, msg)
-		mqttCheck(t)
-	}
-	os.Exit(1)
 }
 
 func check(e error) {
