@@ -114,11 +114,11 @@ func blockUntilOpen() {
 	// use readline's Stdout to force re-display of current input
 	fmt.Fprintf(console.Stdout(), "[connected to %s]\n", path.Base(*port))
 
-	if !*raw {
-		telnetInit()
-	} else {
+	if *raw && tty != nil {
 		tty.SetRTS(true)
 		tty.SetDTR(false)
+	} else {
+		telnetInit()
 	}
 }
 
@@ -179,7 +179,9 @@ func SerialDispatch() {
 				return
 			} else if _, err := dev.Write(data); err != nil {
 				fmt.Printf("[WRITE ERROR! %s]\n", *port)
-				dev.Close()
+				if dev != nil {
+					dev.Close()
+				}
 				return
 			}
 		}
