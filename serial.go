@@ -118,6 +118,8 @@ func blockUntilOpen() {
 		tty.SetRTS(true)
 		tty.SetDTR(false)
 	} else {
+		// this delay avoids massive reconnects with ser2net to a usb-console
+		time.Sleep(time.Second)
 		telnetInit()
 	}
 }
