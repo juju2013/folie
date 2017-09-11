@@ -2,59 +2,68 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
-	"time"
+	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"go.bug.st/serial.v1"
 )
 
+var (
+	mqttFlag  = flag.String("m", "tcp://127.0.0.1:1883", "MQTT broker")
+	portFlag  = flag.String("p", "/dev/cu.usbmodem322F2211", "serial port")
+	quietFlag = flag.Bool("q", false, "quiet mode, don't show in/out messages")
+	topicFlag = flag.String("t", "bridge/%", "MQTT topic template")
+)
+
 func main() {
+	flag.Parse()
 	log.SetFlags(0) // omit timestamps
 
-	port := "/dev/cu.usbmodem322F2211"
-	mode := serial.Mode{BaudRate: 115200}
-
-	dev, err := serial.Open(port, &mode)
+	dev, err := serial.Open(*portFlag, &serial.Mode{BaudRate: 115200})
 	check(err)
-
 	defer dev.Close()
 
-	go SerialReader(dev)
-	dev.Write([]byte("1 2 + .\r"))
-
-	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://127.0.0.1:1883")
-	opts.SetDefaultPublishHandler(pubHandler)
-
+	opts := mqtt.NewClientOptions().AddBroker(*mqttFlag)
 	c := mqtt.NewClient(opts)
-	if t := c.Connect(); t.Wait() && t.Error() != nil {
-		panic(t.Error())
-	}
-
-	t := c.Subscribe("test/bridge", 0, nil)
+	t := c.Connect()
 	mqttCheck(t)
 
-	for i := 0; i < 5; i++ {
-		text := fmt.Sprintf("this is msg #%d!", i)
-		t := c.Publish("test/bridge", 0, false, text)
-		mqttCheck(t)
+	t = c.Subscribe(topic("out"), 0, func(c mqtt.Client, msg mqtt.Message) {
+		if !*quietFlag {
+			fmt.Printf("> %s\n", msg.Payload())
+		}
+		dev.Write(append(msg.Payload(), '\r'))
+	})
+	mqttCheck(t)
+
+	go readSerial(dev, c)
+
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		text, err := reader.ReadString('\n')
+		check(err)
+		dev.Write([]byte(text[:len(text)-1] + "\r"))
 	}
-
-	time.Sleep(1 * time.Second)
-	log.Print("Done")
+	// exit when stdin closes
 }
 
-func pubHandler(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("MQTT: %s - %s\n", msg.Topic(), msg.Payload())
+func topic(s string) string {
+	return strings.Replace(*topicFlag, "%", s, -1)
 }
 
-func SerialReader(dev serial.Port) {
+func readSerial(dev serial.Port, client mqtt.Client) {
 	scanner := bufio.NewScanner(dev)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		msg := scanner.Text()
+		if !*quietFlag {
+			fmt.Printf("< %s\n", msg)
+		}
+		t := client.Publish(topic("in"), 0, false, msg)
+		mqttCheck(t)
 	}
 	os.Exit(1)
 }
