@@ -36,7 +36,7 @@ func main() {
 		if !*quietFlag {
 			fmt.Printf("> %s\n", msg.Payload())
 		}
-		dev.Write(append(msg.Payload(), '\r'))
+		dev.Write(append(msg.Payload(), '\n'))
 	})
 	mqttCheck(t)
 
