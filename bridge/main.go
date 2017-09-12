@@ -14,7 +14,7 @@ import (
 
 var (
 	mqttFlag  = flag.String("m", "tcp://127.0.0.1:1883", "MQTT broker")
-	portFlag  = flag.String("p", "/dev/cu.usbmodem322F2211", "serial port")
+	portFlag  = flag.String("p", "/dev/cu.usbmodem34208131", "serial port")
 	quietFlag = flag.Bool("q", false, "quiet mode, don't show in/out messages")
 	topicFlag = flag.String("t", "bridge/%", "MQTT topic template")
 )
