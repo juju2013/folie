@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	port = flag.String("p", "", "serial port (COM*, /dev/cu.*, or /dev/tty*)")
-	baud = flag.Int("b", 115200, "serial baud rate")
-	raw  = flag.Bool("r", false, "use raw instead of telnet protocol")
+	port     = flag.String("p", "", "serial port (COM*, /dev/cu.*, or /dev/tty*)")
+	baud     = flag.Int("b", 115200, "serial baud rate")
+	raw      = flag.Bool("r", false, "use raw instead of telnet protocol")
+	throttle = flag.Int("t", 1000, "throttle outgoing data using chunks")
 
 	tty     serial.Port        // only used for serial connections
 	dev     io.ReadWriteCloser // used for both serial and tcp connections
@@ -179,12 +180,27 @@ func SerialDispatch() {
 			if dev == nil { // avoid write-while-closed panics
 				fmt.Printf("[CAN'T WRITE! %s]\n", *port)
 				return
-			} else if _, err := dev.Write(data); err != nil {
-				fmt.Printf("[WRITE ERROR! %s]\n", *port)
-				if dev != nil {
-					dev.Close()
+			} else {
+				// send data in chunks of at most "throttle" chars, with a 1 ms
+				// delay between them, so USB gets a chance to keep up - this
+				// helps avoid data loss with Nucleo boards using ST-Link V2's
+				for len(data) > 0 {
+					s := data
+					if len(s) > *throttle {
+						s = s[:*throttle]
+					}
+					if _, err := dev.Write(s); err != nil {
+						fmt.Printf("[WRITE ERROR! %s]\n", *port)
+						if dev != nil {
+							dev.Close()
+						}
+						return
+					}
+					data = data[len(s):]
+					if len(data) > 0 {
+						time.Sleep(time.Millisecond)
+					}
 				}
-				return
 			}
 		}
 	}()
